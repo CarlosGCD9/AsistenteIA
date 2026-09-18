@@ -1,18 +1,16 @@
-from openai import OpenAI
-
-from app.config import OPENAI_API_KEY, OPENAI_MODEL
+from app.config import ASSISTANT_NAME
 from app.persistence.persistencia import Persistencia
+from app.llm.router import get_llm_provider
 
 class AgenteIA:
     def __init__(self):
 
-        self.client = OpenAI(
-            api_key = OPENAI_API_KEY
-        )
-
         self.persistencia = Persistencia()
 
+        self.llm = get_llm_provider()
+
         self.system_prompt = (
+            f"Tu nombre es {ASSISTANT_NAME}."
             "Eres un asistente útil que habla español "
             "y eres muy conciso con tus respuestas."
         )
@@ -28,43 +26,57 @@ class AgenteIA:
         mensajes_guardados = self.persistencia.cargar_mensajes()
         self.messages.extend(mensajes_guardados)
 
-    def enviar_mensaje(self, mensaje):
-        mensaje = mensaje.strip()
-
-        if not mensaje:
-            return None
-
-        self.messages.append({
+    def responder(self, mensaje_usuario: str) -> str:
+        mensaje = {
             "role": "user",
-            "content": mensaje
-        })
+            "content": mensaje_usuario
+        }
 
+        self.messages.append(mensaje)
         self.persistencia.guardar_mensaje(
-            "user",
-            mensaje
+            mensaje["role"],
+            mensaje["content"]
         )
 
-        response = self.client.responses.create(
-            model = OPENAI_MODEL,
-            input = self.messages
-        )
+        respuesta = self.llm.responder(self.messages)
 
-        respuesta = response.output_text
-
-        self.messages.append({
+        mensaje_asistente = {
             "role": "assistant",
             "content": respuesta
-        })
+        }
 
+        self.messages.append(mensaje_asistente)
         self.persistencia.guardar_mensaje(
-            "assistant",
-            respuesta
+            mensaje_asistente["role"],
+            mensaje_asistente["content"]
         )
 
         return respuesta
 
+
+    def enviar_mensaje(self, mensaje):
+        mensaje_usuario = {
+            "role": "user",
+            "content": mensaje,
+        }
+
+        self.messages.append(mensaje_usuario)
+        self.persistencia.guardar_mensaje("user", mensaje)
+
+        respuesta = self.llm.responder(self.messages)
+
+        mensaje_asistente = {
+            "role": "assistant",
+            "content": respuesta,
+        }
+
+        self.messages.append(mensaje_asistente)
+        self.persistencia.guardar_mensaje("assistant", respuesta)
+
+        return respuesta
+
     def ejecutar(self):
-        print("Agente IA iniciado")
+        print(f"{ASSISTANT_NAME} iniciado")
         print(
             f"Mensajes anteriores cargados: {len(self.messages) - 1}"
         )
@@ -92,7 +104,7 @@ class AgenteIA:
                 respuesta = self.enviar_mensaje(user_input)
 
                 if respuesta:
-                    print(f"Asistente: {respuesta}\n")
+                    print(f"{ASSISTANT_NAME}: {respuesta}\n")
 
             except Exception as e:
 

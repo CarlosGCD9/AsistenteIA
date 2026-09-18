@@ -22,13 +22,24 @@ ENV_PATH = BASE_DIR / ".env"
 
 load_dotenv(ENV_PATH)
 
-#CONFIG OPENAI
+#CONFIG PROVEEDOR
+LLM_PROVIDER = os.getenv(
+    "LLM_PROVIDER", 
+    "ollama"
+    )
 
+#CONFIG OPENAI
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 OPENAI_MODEL = os.getenv(
     "OPENAI_MODEL",
     "gpt-5-nano"
+)
+
+#CONFIG OLLAMA
+OLLAMA_MODEL = os.getenv(
+    "OLLAMA_MODEL",
+    "qwen3:4b"
 )
 
 #Config asistente
