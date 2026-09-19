@@ -3,6 +3,9 @@ import os
 
 from dotenv import load_dotenv
 
+MAX_CONTEXT_TURNS = 5
+MAX_CONTEXT_CHARS = 12000
+
 #Directorio raiz
 
 BASE_DIR = Path(__file__).resolve().parent.parent

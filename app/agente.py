@@ -1,4 +1,4 @@
-from app.config import ASSISTANT_NAME
+from app.config import ASSISTANT_NAME, MAX_CONTEXT_TURNS, MAX_CONTEXT_CHARS
 from app.persistence.persistencia import Persistencia
 from app.llm.router import get_llm_provider
 
@@ -26,6 +26,49 @@ class AgenteIA:
         mensajes_guardados = self.persistencia.cargar_mensajes()
         self.messages.extend(mensajes_guardados)
 
+    def _construir_contexto(self):
+
+        mensaje_sistema = self.messages[0]
+        mensaje_actual = self.messages[-1]
+        historial_anterior = self.messages[1:-1]
+
+        caracteres_base = len(mensaje_sistema["content"]) + len(mensaje_actual["content"])
+
+        if caracteres_base > MAX_CONTEXT_CHARS:
+            raise ValueError("El sistema y la pregunta actual superan el límite de contexto")
+
+        turnos_completos = []
+        for i in range(len(historial_anterior) - 1):
+            primero = historial_anterior[i]
+            segundo = historial_anterior[i + 1]
+
+            if primero["role"] == "user" and segundo["role"] == "assistant":
+                turnos_completos.append([primero, segundo])
+
+        if MAX_CONTEXT_TURNS > 0:
+
+            turnos_recientes = turnos_completos[-MAX_CONTEXT_TURNS:]
+        else: 
+            turnos_recientes = []
+
+        caracteres_totales = caracteres_base
+
+        for turno in turnos_recientes:
+            caracteres_totales += len(turno[0]["content"]) + len(turno[1]["content"])
+
+        while caracteres_totales > MAX_CONTEXT_CHARS and turnos_recientes:
+            turno_eliminado = turnos_recientes.pop(0)
+
+            caracteres_totales -= len(turno_eliminado[0]["content"]) + len(turno_eliminado[1]["content"])
+
+        historial_reciente = []
+        for turno in turnos_recientes:
+            historial_reciente.extend(turno)
+            
+
+        return [mensaje_sistema] + historial_reciente + [mensaje_actual]
+
+
     def responder(self, mensaje_usuario: str) -> str:
         mensaje = {
             "role": "user",
@@ -33,12 +76,20 @@ class AgenteIA:
         }
 
         self.messages.append(mensaje)
+
+        try:
+            contexto = self._construir_contexto()
+        except ValueError:
+            self.messages.pop()
+            raise
+
+        
         self.persistencia.guardar_mensaje(
             mensaje["role"],
             mensaje["content"]
         )
-
-        respuesta = self.llm.responder(self.messages)
+        
+        respuesta = self.llm.responder(contexto)
 
         mensaje_asistente = {
             "role": "assistant",
@@ -50,28 +101,6 @@ class AgenteIA:
             mensaje_asistente["role"],
             mensaje_asistente["content"]
         )
-
-        return respuesta
-
-
-    def enviar_mensaje(self, mensaje):
-        mensaje_usuario = {
-            "role": "user",
-            "content": mensaje,
-        }
-
-        self.messages.append(mensaje_usuario)
-        self.persistencia.guardar_mensaje("user", mensaje)
-
-        respuesta = self.llm.responder(self.messages)
-
-        mensaje_asistente = {
-            "role": "assistant",
-            "content": respuesta,
-        }
-
-        self.messages.append(mensaje_asistente)
-        self.persistencia.guardar_mensaje("assistant", respuesta)
 
         return respuesta
 
@@ -101,7 +130,7 @@ class AgenteIA:
 
             try:
 
-                respuesta = self.enviar_mensaje(user_input)
+                respuesta = self.responder(user_input)
 
                 if respuesta:
                     print(f"{ASSISTANT_NAME}: {respuesta}\n")
