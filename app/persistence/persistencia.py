@@ -31,6 +31,54 @@ class Persistencia:
                 """
             )
 
+            conexion.execute(
+                """
+                CREATE TABLE IF NOT EXISTS memoria (
+                    clave TEXT PRIMARY KEY NOT NULL,
+                    valor TEXT NOT NULL
+                )
+                """
+            )
+
+# Gestion de memoria
+    
+    #Guarda un dato o actualiza su valor si la clave existe
+    def guardar_memoria(self, clave: str, valor: str):
+        with self._conectar() as conexion:
+            conexion.execute(
+                """
+                INSERT INTO memoria(clave, valor)
+                VALUES (?, ?)
+                ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor 
+                """,
+                (clave, valor)
+            )
+
+    def obtener_memoria(self, clave: str):
+        with self._conectar() as conexion:
+            cursor = conexion.execute(
+                """
+                SELECT valor FROM memoria WHERE clave = ?
+                """,
+                (clave,)
+            )
+            fila = cursor.fetchone()
+
+            if fila is not None:
+                return fila[0]
+            return None  
+
+    def cargar_memoria(self):
+        with self._conectar() as conexion:
+            cursor = conexion.execute(
+                """
+                SELECT clave, valor FROM memoria ORDER BY clave
+                """
+            )
+
+            filas = cursor.fetchall()
+            return dict(filas)
+
     def guardar_mensaje(self, role, content):
         with self._conectar() as conexion:
             conexion.execute(
@@ -38,7 +86,7 @@ class Persistencia:
                 INSERT INTO mensajes (role, content)
                 VALUES (?, ?)
                 """,
-                (role, content),
+                (role, content)
             )
 
     def cargar_mensajes(self):

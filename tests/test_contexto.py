@@ -11,7 +11,10 @@ def agente(monkeypatch):
     monkeypatch.setattr(modulo_agente, maximo_contexto_turno, 5)
     monkeypatch.setattr(modulo_agente, maximo_contexto_chars, 12000)
 
-    return AgenteIA.__new__(AgenteIA)
+    instancia = AgenteIA.__new__(AgenteIA)
+    instancia.persistencia = Mock()
+    instancia.persistencia.cargar_memoria.return_value = {}
+    return instancia
 
 
 def test_contexto_excluye_pregunta_sin_respuesta(agente):
@@ -122,7 +125,6 @@ def test_responder_rechaza_sin_guardar(agente, monkeypatch):
         {"role": "system", "content": "ss"}
     ]
 
-    agente.persistencia = Mock()
     agente.llm = Mock()
 
     with pytest.raises(ValueError):
@@ -135,4 +137,54 @@ def test_responder_rechaza_sin_guardar(agente, monkeypatch):
         {"role": "system", "content": "ss"}
     ]
 
+def test_contexto_incluye_memoria(agente):
+    agente.persistencia.cargar_memoria.return_value = {"usuario": "Carlos"}
 
+    agente.messages = [
+        {"role": "system", "content": "sistema"},
+        {"role": "user", "content": "¿Cómo me llamo?"}
+    ]
+
+    contexto = agente._construir_contexto()
+
+    assert "usuario: Carlos" in contexto[0]["content"]
+    assert agente.messages[0]["content"] == "sistema"
+
+def test_memoria_excesiva_rechaza_sin_guardar(agente, monkeypatch):
+    monkeypatch.setattr(modulo_agente, maximo_contexto_chars, 100)
+
+    agente.persistencia.cargar_memoria.return_value = {
+        "dato": "x" * 101
+    }
+
+    agente.messages = [
+        {"role": "system", "content": "s"}
+    ]
+
+    agente.llm = Mock()
+
+    with pytest.raises(ValueError):
+        agente.responder("q")
+
+    agente.persistencia.guardar_mensaje.assert_not_called()
+    agente.llm.responder.assert_not_called()
+
+    assert agente.messages == [
+        {"role": "system", "content": "s"}
+    ]
+
+
+def test_guardar_recuerdo_elimina_espacios(agente):
+    respuesta = agente._guardar_recuerdo(" usuario = Carlos ")
+
+    agente.persistencia.guardar_memoria.assert_called_once_with(
+        "usuario", "Carlos"
+    )
+    assert respuesta == "Recordado: usuario = Carlos"
+
+
+def test_guardar_recuerdo_rechaza_valor_vacio(agente):
+    with pytest.raises(ValueError):
+        agente._guardar_recuerdo("usuario=   ")
+
+    agente.persistencia.guardar_memoria.assert_not_called()

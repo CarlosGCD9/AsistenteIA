@@ -53,3 +53,66 @@ def test_borrar_historial(tmp_path):
     persistencia.borrar_historial()
 
     assert persistencia.cargar_mensajes() == []
+
+def test_guardar_y_obtener_memoria(tmp_path):
+    db_path = tmp_path / "test_memoria.db"
+
+    persistencia = Persistencia(db_path)
+
+    persistencia.guardar_memoria(
+        "usuario",
+        "Carlos"
+    )
+
+    assert persistencia.obtener_memoria("usuario") == "Carlos"
+
+def test_actualizar_memoria(tmp_path):
+    db_path = tmp_path / "test_memoria.db"
+
+    persistencia = Persistencia(db_path)
+
+    persistencia.guardar_memoria(
+        "usuario",
+        "Carlos"
+    )
+
+    persistencia.guardar_memoria(
+        "usuario",
+        "Luis"
+    )
+
+    assert persistencia.obtener_memoria("usuario") == "Luis"
+
+def test_obtener_memoria_inexistente(tmp_path):
+    db_path = tmp_path / "test_memoria.db"
+    persistencia = Persistencia(db_path)
+
+    assert persistencia.obtener_memoria("usuario") is None
+
+def test_cargar_memoria_vacia(tmp_path):
+    db_path = tmp_path / "test_memoria.db"
+
+    persistencia = Persistencia(db_path)
+
+    assert persistencia.cargar_memoria() == {}
+
+def test_cargar_memoria(tmp_path):
+    db_path = tmp_path / "test_memoria.db"
+    persistencia = Persistencia(db_path)
+
+    persistencia.guardar_memoria(
+        "usuario",
+        "Carlos"
+    )
+
+    persistencia.guardar_memoria(
+            "idioma",
+            "español"
+        )
+
+    pers = Persistencia(db_path)
+
+    assert pers.cargar_memoria() == {
+        "usuario": "Carlos",
+        "idioma": "español",
+    }
