@@ -8,6 +8,8 @@ Se priorizan soluciones locales, privadas y de bajo coste. Los servicios cloud s
 
 ## Estado del proyecto
 
+La checklist completa se mantiene en [ROADMAP.md](ROADMAP.md). Según su alcance ampliado, las fases 4 y 5 están parcialmente completadas: funcionan el contexto limitado y la memoria explícita con eliminación, pero faltan resúmenes, carga limitada del historial, categorías e importancia.
+
 - Fases 1 y 2: base del asistente, consola, configuración, integración con OpenAI e historial persistente.
 - Fase 3: proveedores separados y ejecución local con Ollama. Validado manualmente con `qwen3:4b` sin Internet.
 - Fase 4: selección del contexto por turnos completos y límite de caracteres.
@@ -136,10 +138,18 @@ En cada consulta se recuperan todos los recuerdos y se añaden a una copia del m
 
 Puedes preguntar `¿Cómo me llamo?` después de guardar el nombre y también tras reiniciar. Esta recuperación no depende de que el turno original siga entre los cinco recientes.
 
+### Eliminar un recuerdo
+
+Usa `/olvidar clave`, por ejemplo `/olvidar usuario`. Se eliminan los espacios de los extremos de la clave y se muestra `Olvidado: usuario` si existía, o `No existe el recuerdo: usuario` si no existía. Una clave vacía muestra `Error: Usa /olvidar clave` y permite continuar.
+
+La eliminación es persistente y afecta solo al recuerdo seleccionado. No consulta al modelo ni añade mensajes al historial. Tampoco borra menciones anteriores de ese dato en el historial de conversación; esas menciones todavía pueden formar parte de los turnos recientes enviados al modelo.
+
+Todas las operaciones de persistencia cierran explícitamente sus conexiones SQLite mediante `closing`. Las escrituras conservan la gestión de transacciones para confirmar los cambios o revertirlos ante errores.
+
 ### Alcance y privacidad
 
 - No hay extracción automática de recuerdos, búsqueda semántica ni selección de recuerdos por relevancia.
-- Todavía no existen comandos de consola para listar o eliminar recuerdos.
+- Todavía no existe un comando de consola para listar recuerdos.
 - `borrar_historial()` elimina mensajes; no elimina la tabla de recuerdos.
 - Una memoria demasiado grande puede impedir consultas hasta reducir sus valores; no se trunca automáticamente.
 - Los recuerdos se almacenan localmente, pero se envían al proveedor configurado cuando forman parte del contexto. Con OpenAI, salen del equipo junto con ese contexto.
@@ -162,6 +172,10 @@ python -m pytest tests/test_llm_router.py -q
 
 Último resultado de la suite completa comunicado por el usuario: **22 passed**. Es un resultado de validación, no un número fijo que deban conservar futuras versiones.
 
+Última suite completa ejecutada por el agente al cerrar el bloque de `/olvidar`: **28 passed en 1,91 s**, con bases temporales, dependencias simuladas y sin consultas a modelos. Se utilizó una clave ficticia solo para construir el cliente OpenAI en las pruebas del router.
+
+Las pruebas de eliminación cubren el borrado selectivo, una clave inexistente, la limpieza de espacios, el rechazo de claves vacías y la conexión del comando de consola sin llamadas al LLM ni cambios en el historial. El usuario también comunicó haber completado la comprobación manual de `/olvidar`, incluyendo la repetición tras reiniciar.
+
 Las pruebas cubren persistencia, actualización y recuperación de recuerdos, selección de proveedores, recorte de contexto, rechazo sin efectos de guardado, incorporación de memoria y validación básica de recuerdos. Usan bases temporales, `monkeypatch` y `Mock` según el caso.
 
 Las pruebas del router instancian proveedores; la de OpenAI necesita una clave configurada para construir el cliente, aunque no realiza una consulta al modelo.
@@ -171,3 +185,18 @@ Validaciones manuales realizadas: Ollama sin Internet, uso de `/recordar`, consu
 ## Próximos objetivos
 
 La memoria semántica corresponde a la fase 6. A más largo plazo se prevén selección automática de proveedores, herramientas, consultas externas, automatizaciones, integraciones, voz e interfaz gráfica. Son objetivos futuros, no funcionalidades actuales.
+
+### Fase Q — Formación en computación cuántica y optimización híbrida
+
+Planificada como una pausa temporal del desarrollo funcional: **Fase 9 — Router inteligente de modelos → Fase Q → continuación del roadmap**. Todas las tareas siguientes están pendientes. Esta sección registra la nueva fase; no sustituye la checklist completa del proyecto.
+
+- [ ] Estudiar con recursos oficiales, principalmente IBM Quantum y Qiskit: funciones objetivo, restricciones, variables binarias, QUBO, Ising, algoritmos variacionales y QAOA.
+- [ ] Practicar simulación, ruido, transpilación y workflows híbridos; utilizar hardware cuántico cuando sea razonable.
+- [ ] **Q1 — Fundamentos con QAOA:** formular Max-Cut, resolverlo clásicamente, convertirlo a QUBO/Ising, ejecutar QAOA en simulador y comparar resultados.
+- [ ] **Q2 — Routing de modelos IA:** asignar tareas a Python, modelos locales pequeños/grandes o API externa, considerando coste, latencia, RAM, VRAM, calidad estimada y privacidad. Crear formulación matemática, baseline clásico, QUBO y comparativa con QAOA.
+- [ ] **Q3 — Recursos hardware:** formular un scheduler de trabajos para CPU, GPU y cloud con prioridad, duración, memoria, plazo y coste. Comparar soluciones clásicas e híbridas según tiempo total, coste, prioridades y uso de recursos.
+- [ ] **Q4 — Proyecto de portfolio:** ampliar Q2 o Q3 con warm-start QAOA, distintos optimizadores y profundidades, análisis de ruido, transpilación, hardware real y benchmarking.
+- [ ] Preparar cada mini-proyecto como repositorio independiente con `README.md`, `src/`, `notebooks/`, `tests/`, `results/` y `requirements.txt`.
+- [ ] Documentar en cada proyecto el problema, formulación, soluciones clásica y cuántica, instancias, metodología, métricas, resultados, gráficas, limitaciones, conclusiones e instrucciones reproducibles.
+
+Los experimentos deben partir de problemas reales de optimización. No se afirmará una ventaja cuántica sin evidencia experimental. La fase persigue aprendizaje y proyectos demostrables; no implica incorporar computación cuántica al asistente.

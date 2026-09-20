@@ -65,6 +65,8 @@ El entorno virtual local es `env`. En PowerShell se activa con `.\env\Scripts\Ac
 
 Fases 1 y 2 completadas: base del asistente e historial persistente. Fase 3 validada con Ollama sin Internet. Fase 4 implementada: contexto limitado. Fase 5 implementada y validada: memoria explícita. Memoria semántica prevista para fase 6, todavía pendiente.
 
+Matiz tras recibir la checklist completa: `ROADMAP.md` es la guía de trabajo. Las fases 4 y 5 están parcialmente completadas respecto a ese alcance: faltan resúmenes y carga limitada del historial (fase 4), categorías e importancia (fase 5). La eliminación mediante `/olvidar clave` ya está implementada y validada. Fase Q planificada después de la fase 9.
+
 ## Comportamientos que deben conservarse
 
 ### Contexto
@@ -87,6 +89,8 @@ Fases 1 y 2 completadas: base del asistente e historial persistente. Fase 3 vali
 - Actualmente se incluyen todos los recuerdos; no hay selección semántica por relevancia.
 - `obtener_memoria` devuelve `None` si no hay clave; `cargar_memoria` devuelve `{}` si no hay recuerdos.
 - Borrar historial no implica borrar recuerdos.
+- `/olvidar clave` elimina solo ese recuerdo, informa si no existe y rechaza claves vacías tras `strip()`. No llama al LLM ni añade turnos; no borra menciones del dato en mensajes anteriores.
+- Las conexiones SQLite se cierran explícitamente con `closing`; las escrituras conservan la gestión de transacciones.
 
 ## Privacidad y datos
 
@@ -104,6 +108,7 @@ Fases 1 y 2 completadas: base del asistente e historial persistente. Fase 3 vali
 - Para comprobar el conjunto del proyecto: `python -m pytest -q`.
 - Las pruebas actuales del router instancian OpenAI y pueden requerir una clave configurada, aunque no consulten al modelo. No imprimir esa clave para diagnosticar fallos.
 - Última suite completa comunicada por el usuario: 22 passed. No tratar ese resultado histórico como una ejecución nueva.
+- Suite completa ejecutada por el agente al cerrar `/olvidar`: 28 passed en 1,91 s, con bases temporales y sin consultas a modelos. El usuario comunicó completar la prueba manual de eliminación y persistencia tras reiniciar.
 - Validaciones manuales comunicadas: Ollama sin Internet, guardar recuerdo, preguntar el nombre, reiniciar y recuperar el dato, y rechazo de `/recordar` sin argumentos.
 - Comprobar el diff y el formato de los documentos editados. No repetir pruebas de código por cambios únicamente documentales salvo que haya un motivo concreto.
 - No hacer commits, push ni publicar cambios por iniciativa propia en este flujo de tutoría; esperar una petición del usuario.

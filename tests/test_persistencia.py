@@ -106,9 +106,9 @@ def test_cargar_memoria(tmp_path):
     )
 
     persistencia.guardar_memoria(
-            "idioma",
-            "español"
-        )
+        "idioma",
+        "español"
+    )
 
     pers = Persistencia(db_path)
 
@@ -116,3 +116,35 @@ def test_cargar_memoria(tmp_path):
         "usuario": "Carlos",
         "idioma": "español",
     }
+
+def test_eliminar_memoria_conserva_otros_recuerdos(tmp_path):
+    persistencia = Persistencia(tmp_path / "test_memoria")
+
+    persistencia.guardar_memoria(
+        "usuario",
+        "Carlos"
+    )
+
+    persistencia.guardar_memoria(
+        "idioma",
+        "español"
+    )
+
+    assert persistencia.eliminar_memoria("usuario") is True
+
+    assert persistencia.obtener_memoria("usuario") is None
+
+    assert persistencia.obtener_memoria("idioma") == "español"
+
+def test_eliminar_memoria_inexistente(tmp_path):
+    db_path = tmp_path / "test_memoria"
+    persistencia = Persistencia(db_path)
+
+    persistencia.guardar_memoria(
+        "idioma",
+        "español"
+    )
+
+    assert persistencia.eliminar_memoria("no existe") is False
+
+    assert persistencia.cargar_memoria() == {"idioma": "español"}

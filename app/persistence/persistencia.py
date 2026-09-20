@@ -1,5 +1,6 @@
 import sqlite3
 from pathlib import Path
+from contextlib import closing
 
 from app.config import DATABASE_PATH, crear_directorios
 
@@ -19,7 +20,7 @@ class Persistencia:
         return sqlite3.connect(self.db_path)
 
     def _crear_tablas(self):
-        with self._conectar() as conexion:
+        with closing(self._conectar()) as conexion, conexion:
             conexion.execute(
                 """
                 CREATE TABLE IF NOT EXISTS mensajes (
@@ -44,7 +45,7 @@ class Persistencia:
     
     #Guarda un dato o actualiza su valor si la clave existe
     def guardar_memoria(self, clave: str, valor: str):
-        with self._conectar() as conexion:
+        with closing(self._conectar()) as conexion, conexion:
             conexion.execute(
                 """
                 INSERT INTO memoria(clave, valor)
@@ -54,8 +55,21 @@ class Persistencia:
                 (clave, valor)
             )
 
+    def eliminar_memoria(self, clave: str) -> bool:
+        with closing(self._conectar()) as conexion:
+            with conexion:
+                cursor = conexion.execute(
+                    """
+                    DELETE FROM memoria WHERE clave = ?
+                    """,
+                    (clave,)
+                )
+
+                return cursor.rowcount > 0
+
+
     def obtener_memoria(self, clave: str):
-        with self._conectar() as conexion:
+        with closing(self._conectar()) as conexion:
             cursor = conexion.execute(
                 """
                 SELECT valor FROM memoria WHERE clave = ?
@@ -69,7 +83,7 @@ class Persistencia:
             return None  
 
     def cargar_memoria(self):
-        with self._conectar() as conexion:
+        with closing(self._conectar()) as conexion:
             cursor = conexion.execute(
                 """
                 SELECT clave, valor FROM memoria ORDER BY clave
@@ -80,7 +94,7 @@ class Persistencia:
             return dict(filas)
 
     def guardar_mensaje(self, role, content):
-        with self._conectar() as conexion:
+        with closing(self._conectar()) as conexion, conexion:
             conexion.execute(
                 """
                 INSERT INTO mensajes (role, content)
@@ -90,7 +104,7 @@ class Persistencia:
             )
 
     def cargar_mensajes(self):
-        with self._conectar() as conexion:
+        with closing(self._conectar()) as conexion:
             cursor = conexion.execute(
                 """
                 SELECT role, content
@@ -110,7 +124,7 @@ class Persistencia:
         ]
 
     def borrar_historial(self):
-        with self._conectar() as conexion:
+        with closing(self._conectar()) as conexion, conexion:
             conexion.execute(
                 """
                 DELETE FROM mensajes

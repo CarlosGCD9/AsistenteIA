@@ -173,7 +173,6 @@ def test_memoria_excesiva_rechaza_sin_guardar(agente, monkeypatch):
         {"role": "system", "content": "s"}
     ]
 
-
 def test_guardar_recuerdo_elimina_espacios(agente):
     respuesta = agente._guardar_recuerdo(" usuario = Carlos ")
 
@@ -182,9 +181,49 @@ def test_guardar_recuerdo_elimina_espacios(agente):
     )
     assert respuesta == "Recordado: usuario = Carlos"
 
-
 def test_guardar_recuerdo_rechaza_valor_vacio(agente):
     with pytest.raises(ValueError):
         agente._guardar_recuerdo("usuario=   ")
 
     agente.persistencia.guardar_memoria.assert_not_called()
+
+def test_eliminar_recuerdo_elimina_espacios(agente):
+    agente.persistencia.eliminar_memoria.return_value = True
+
+    eliminar = agente._eliminar_recuerdo(" usuario ")
+
+    agente.persistencia.eliminar_memoria.assert_called_once_with("usuario")
+
+    assert eliminar == "Olvidado: usuario"
+
+
+def test_eliminar_recuerdo_rechaza_clave_vacia(agente):
+    with pytest.raises(ValueError):
+        agente._eliminar_recuerdo("   ")
+
+    agente.persistencia.eliminar_memoria.assert_not_called()
+
+
+def test_eliminar_recuerdo_inexistente(agente):
+    agente.persistencia.eliminar_memoria.return_value = False
+
+    respuesta = agente._eliminar_recuerdo("no_existe")
+
+    agente.persistencia.eliminar_memoria.assert_called_once_with("no_existe")
+    assert respuesta == "No existe el recuerdo: no_existe"
+
+
+def test_consola_olvidar_no_consulta_llm(agente, monkeypatch, capsys):
+    agente.messages = [{"role": "system", "content": "Sistema"}]
+    agente.llm = Mock()
+    agente.persistencia.eliminar_memoria.return_value = True
+    entrada = Mock(side_effect=["/olvidar usuario", "salir"])
+    monkeypatch.setattr("builtins.input", entrada)
+
+    agente.ejecutar()
+
+    agente.persistencia.eliminar_memoria.assert_called_once_with("usuario")
+    agente.llm.responder.assert_not_called()
+    agente.persistencia.guardar_mensaje.assert_not_called()
+    assert agente.messages == [{"role": "system", "content": "Sistema"}]
+    assert "Olvidado: usuario" in capsys.readouterr().out

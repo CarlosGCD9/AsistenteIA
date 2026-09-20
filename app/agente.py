@@ -138,6 +138,20 @@ class AgenteIA:
             self.persistencia.guardar_memoria(clave, valor)
 
         return f"Recordado: {clave} = {valor}"
+
+    def _eliminar_recuerdo(self, argumento: str) -> str:
+
+        clave = argumento.strip()
+
+        if not clave:
+            raise ValueError("Usa /olvidar clave")
+        else:
+            eliminado = self.persistencia.eliminar_memoria(clave)
+
+        if eliminado:
+            return f"Olvidado: {clave}"
+        else:
+            return f"No existe el recuerdo: {clave}"
         
 
 
@@ -171,6 +185,8 @@ class AgenteIA:
 
                 if comando.lower() == "/recordar":
                     respuesta = self._guardar_recuerdo(argumento)
+                elif comando.lower() == "/olvidar":
+                    respuesta = self._eliminar_recuerdo(argumento)
                 else:
                     respuesta = self.responder(user_input)
 
