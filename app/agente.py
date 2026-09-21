@@ -24,7 +24,7 @@ class AgenteIA:
 
     def _cargar_historial(self):
         mensajes_guardados = self.persistencia.cargar_mensajes(
-            limite = HISTORY_LOAD_LIMIT
+            limite=HISTORY_LOAD_LIMIT
         )
         self.messages.extend(mensajes_guardados)
 

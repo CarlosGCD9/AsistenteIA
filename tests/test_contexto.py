@@ -5,6 +5,7 @@ from unittest.mock import Mock
 
 maximo_contexto_turno = "MAX_CONTEXT_TURNS"
 maximo_contexto_chars = "MAX_CONTEXT_CHARS"
+limite_historial = "HISTORY_LOAD_LIMIT"
 
 @pytest.fixture
 def agente(monkeypatch):
@@ -227,3 +228,24 @@ def test_consola_olvidar_no_consulta_llm(agente, monkeypatch, capsys):
     agente.persistencia.guardar_mensaje.assert_not_called()
     assert agente.messages == [{"role": "system", "content": "Sistema"}]
     assert "Olvidado: usuario" in capsys.readouterr().out
+
+def test_cargar_historial_usa_limite(agente, monkeypatch):
+    monkeypatch.setattr(modulo_agente, limite_historial, 3)
+
+    agente.messages = [{"role": "system", "content": "sis"}]
+
+    mensajes_guardados = [
+        {"role": "user", "content": "hola"},
+        {"role": "assistant", "content": "buenas"}
+    ]  
+
+    agente.persistencia.cargar_mensajes.return_value = mensajes_guardados
+    agente._cargar_historial()
+
+    agente.persistencia.cargar_mensajes.assert_called_once_with(limite=3)
+
+    assert agente.messages == [
+        {"role": "system", "content": "sis"},
+        {"role": "user", "content": "hola"},
+        {"role": "assistant", "content": "buenas"},
+    ]

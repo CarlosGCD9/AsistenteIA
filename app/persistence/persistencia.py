@@ -41,6 +41,53 @@ class Persistencia:
                 """
             )
 
+            conexion.execute(
+                """
+                CREATE TABLE IF NOT EXISTS resumen_conversacion(
+                   id INTEGER PRIMARY KEY CHECK (id = 1),
+                   contenido TEXT NOT NULL,
+                   ultimo_mensaje_id INTEGER NOT NULL,
+                   fecha_actualizacion DATETIME DEFAULT CURRENT_TIMESTAMP 
+                )
+                """
+            )
+
+#Gestión de resumenes
+    def guardar_resumen(self, contenido: str, ultimo_mensaje_id: int) -> None:
+        with closing(self._conectar()) as conexion, conexion:
+            conexion.execute(
+                """
+                INSERT INTO resumen_conversacion(
+                    id,
+                    contenido,
+                    ultimo_mensaje_id
+                )
+                VALUES(1, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    contenido = excluded.contenido,
+                    ultimo_mensaje_id = excluded.ultimo_mensaje_id,
+                    fecha_actualizacion = CURRENT_TIMESTAMP
+                """,
+                (contenido, ultimo_mensaje_id)
+            )
+
+    def obtener_resumen(self):
+        with closing(self._conectar()) as conexion, conexion:
+            cursor = conexion.execute(
+                """
+                SELECT contenido, ultimo_mensaje_id FROM resumen_conversacion WHERE id = 1
+                """
+            )
+
+            fila = cursor.fetchone()
+            
+            if fila is not None:
+                return {"contenido": fila[0], "ultimo_mensaje_id": fila[1]}
+            else: 
+                return None
+
+
+
 # Gestion de memoria
     
     #Guarda un dato o actualiza su valor si la clave existe
@@ -151,3 +198,4 @@ class Persistencia:
                 DELETE FROM mensajes
                 """
             )
+
