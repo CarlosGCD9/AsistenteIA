@@ -3,8 +3,10 @@ import os
 
 from dotenv import load_dotenv
 
+#Limites del contexto
 MAX_CONTEXT_TURNS = 5
 MAX_CONTEXT_CHARS = 12000
+HISTORY_LOAD_LIMIT = MAX_CONTEXT_TURNS * 2 + 1
 
 #Directorio raiz
 

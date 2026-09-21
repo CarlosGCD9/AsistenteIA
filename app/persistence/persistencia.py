@@ -103,17 +103,38 @@ class Persistencia:
                 (role, content)
             )
 
-    def cargar_mensajes(self):
+    def cargar_mensajes(self, limite = None):
+        if limite is not None:
+            if limite < 0:
+                raise ValueError("El límite no puede ser negativo")
+            if limite == 0:
+                return []
+            
         with closing(self._conectar()) as conexion:
-            cursor = conexion.execute(
-                """
-                SELECT role, content
-                FROM mensajes
-                ORDER BY id ASC
-                """
-            )
+
+            if limite is None:
+                cursor = conexion.execute(
+                    """
+                    SELECT role, content
+                    FROM mensajes
+                    ORDER BY id ASC
+                    """
+                )
+            else:
+                cursor = conexion.execute(
+                    """
+                    SELECT role, content FROM mensajes
+                    ORDER BY id DESC
+                    LIMIT ?
+                    """,
+                    (limite,)
+                )
+                
 
             filas = cursor.fetchall()
+
+            if limite is not None:
+                filas.reverse()
 
         return [
             {

@@ -26,6 +26,18 @@ Objetivos a largo plazo: memoria persistente, modelos locales y cloud, selecció
 
 ## Carpeta de trabajo
 
+### Organización de las conversaciones
+
+- Mantener una tarea de tutoría por fase con el nombre `FASE X - Descripción breve`. Crear la tarea al iniciar la fase, reutilizando una existente si corresponde; no iniciar fases futuras automáticamente.
+- Esta organización fue solicitada por el usuario. Las nuevas tareas de fase deben usar el proyecto local directamente en `C:\Users\agent\Desktop\AgenteIA`, sin crear worktrees.
+- Tarea actual de fase 5: `01a0bff8-8548-7ba3-bf9b-ddd57529cc3d`, titulada `FASE 5 - Memoria del asistente`.
+- Tarea de fase 4: `01a0b98e-3c2b-7fc0-bf54-3fbd35ed4663`, titulada `FASE 4 - Gestión del contexto`.
+- Conservar como antecedente `FASE 5 - Memoria explícita (histórico)` (`01a0bbea-f612-70f3-8a04-ba1c305b42b6`); continuar la fase 5 en la tarea actual, evitando duplicar tutorías.
+- Referencia separada: `ROADMAP - Fases y tareas del asistente`, id `01a0c042-4e6f-7c50-b53d-7da8fc1ecc83`, host `local`. Su finalidad es mostrar todas las fases y tareas, no desarrollar código.
+- `ROADMAP.md` es la fuente persistente del estado. Al completar una fase entera, verificar sus tareas y pruebas, actualizar sus casillas y estado, y enviar a la tarea de referencia una actualización para que vuelva a leer el archivo y presente el roadmap completo actualizado. El usuario autoriza esta actualización como parte del cierre de fase; no necesita repetir la petición.
+- Actualizar la tarea de referencia al cerrar fases o ante cambios de alcance solicitados, no por cada micro-paso. No crear automatizaciones periódicas para ello.
+- No marcar una fase completa por haber cerrado solo un bloque. Las fases 4 y 5 continúan parciales mientras existan sus pendientes documentados. Conservar los historiales existentes; renombrar no redistribuye mensajes antiguos.
+
 La carpeta elegida expresamente por el usuario es:
 
 ```text

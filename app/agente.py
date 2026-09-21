@@ -1,4 +1,4 @@
-from app.config import ASSISTANT_NAME, MAX_CONTEXT_TURNS, MAX_CONTEXT_CHARS
+from app.config import ASSISTANT_NAME, MAX_CONTEXT_TURNS, MAX_CONTEXT_CHARS, HISTORY_LOAD_LIMIT
 from app.persistence.persistencia import Persistencia
 from app.llm.router import get_llm_provider
 
@@ -23,7 +23,9 @@ class AgenteIA:
         self._cargar_historial()
 
     def _cargar_historial(self):
-        mensajes_guardados = self.persistencia.cargar_mensajes()
+        mensajes_guardados = self.persistencia.cargar_mensajes(
+            limite = HISTORY_LOAD_LIMIT
+        )
         self.messages.extend(mensajes_guardados)
 
     def _construir_contexto(self):

@@ -1,5 +1,7 @@
 from app.persistence.persistencia import Persistencia
 
+import pytest
+
 
 def test_crear_base_de_datos(tmp_path):
     db_path = tmp_path / "test_memoria.db"
@@ -148,3 +150,52 @@ def test_eliminar_memoria_inexistente(tmp_path):
     assert persistencia.eliminar_memoria("no existe") is False
 
     assert persistencia.cargar_memoria() == {"idioma": "español"}
+
+def test_cargar_ultimos_mensajes(tmp_path):
+    db_path = tmp_path / "test_memoria"
+    persistencia = Persistencia(db_path)
+
+    persistencia.guardar_mensaje(
+        "user",
+        "Mensaje 1"
+    )
+
+    persistencia.guardar_mensaje(
+        "assistant",
+        "Mensaje 2"
+    )
+
+    persistencia.guardar_mensaje(
+        "user",
+        "Mensaje 3"
+    )
+
+    persistencia.guardar_mensaje(
+        "assistant",
+        "Mensaje 4"
+    )
+
+    mensajes = persistencia.cargar_mensajes(limite=2)
+
+    assert mensajes == [
+        {"role": "user", "content": "Mensaje 3"},
+        {"role": "assistant", "content": "Mensaje 4"},
+    ]
+
+def test_cargar_mensajes_con_limite_cero(tmp_path):
+    db_path = tmp_path / "test_memoria"
+    persistencia = Persistencia(db_path)
+
+    persistencia.guardar_mensaje(
+        "user",
+        "prueba limite cero"
+    )
+
+    assert persistencia.cargar_mensajes(limite=0) == []
+
+def test_cargar_mensajes_rechaza_limite_negativo(tmp_path):
+    db_path = tmp_path / "test_memoria"
+    persistencia = Persistencia(db_path)
+
+    with pytest.raises(ValueError):
+        persistencia.cargar_mensajes(limite=-1)
