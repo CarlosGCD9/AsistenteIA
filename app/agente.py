@@ -1,4 +1,4 @@
-from app.config import ASSISTANT_NAME, MAX_CONTEXT_TURNS, MAX_CONTEXT_CHARS, HISTORY_LOAD_LIMIT
+from app.config import ASSISTANT_NAME, MAX_CONTEXT_TURNS, MAX_CONTEXT_CHARS, HISTORY_LOAD_LIMIT, SUMMARY_BATCH_MESSAGES
 from app.persistence.persistencia import Persistencia
 from app.llm.router import get_llm_provider
 
@@ -22,11 +22,13 @@ class AgenteIA:
 
         self._cargar_historial()
 
+
     def _cargar_historial(self):
         mensajes_guardados = self.persistencia.cargar_mensajes(
             limite=HISTORY_LOAD_LIMIT
         )
         self.messages.extend(mensajes_guardados)
+
 
     def _construir_contexto(self):
 
@@ -128,6 +130,7 @@ class AgenteIA:
 
         return "\n".join(lineas)
 
+
     def _guardar_recuerdo(self, argumento: str):
         clave, separador, valor = argumento.partition("=")
 
@@ -140,6 +143,7 @@ class AgenteIA:
             self.persistencia.guardar_memoria(clave, valor)
 
         return f"Recordado: {clave} = {valor}"
+
 
     def _eliminar_recuerdo(self, argumento: str) -> str:
 
@@ -154,7 +158,34 @@ class AgenteIA:
             return f"Olvidado: {clave}"
         else:
             return f"No existe el recuerdo: {clave}"
+
         
+    def _obtener_mensajes_pendientes_resumen(self):
+        resumen = self.persistencia.obtener_resumen()
+        inicio_reciente = self.persistencia.obtener_id_inicio_historial_reciente(
+            HISTORY_LOAD_LIMIT
+        )
+
+        if inicio_reciente is None:
+            return []
+
+        despues_de_id = resumen["ultimo_mensaje_id"] if resumen else 0
+
+        return self.persistencia.cargar_mensajes_para_resumen(
+            despues_de_id=despues_de_id,
+            antes_de_id=inicio_reciente,
+            limite=SUMMARY_BATCH_MESSAGES
+        )
+
+
+    def _formatear_mensajes_para_resumen(self, mensajes):
+
+        lineas = []
+        for mensaje in mensajes:
+            lineas.append(
+                f'{mensaje["role"]}: {mensaje["content"]}'
+            )
+        return "\n".join(lineas)
 
 
     def ejecutar(self):

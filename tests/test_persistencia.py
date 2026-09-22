@@ -56,6 +56,7 @@ def test_borrar_historial(tmp_path):
 
     assert persistencia.cargar_mensajes() == []
 
+
 def test_guardar_y_obtener_memoria(tmp_path):
     db_path = tmp_path / "test_memoria.db"
 
@@ -67,6 +68,7 @@ def test_guardar_y_obtener_memoria(tmp_path):
     )
 
     assert persistencia.obtener_memoria("usuario") == "Carlos"
+
 
 def test_actualizar_memoria(tmp_path):
     db_path = tmp_path / "test_memoria.db"
@@ -85,11 +87,13 @@ def test_actualizar_memoria(tmp_path):
 
     assert persistencia.obtener_memoria("usuario") == "Luis"
 
+
 def test_obtener_memoria_inexistente(tmp_path):
     db_path = tmp_path / "test_memoria.db"
     persistencia = Persistencia(db_path)
 
     assert persistencia.obtener_memoria("usuario") is None
+
 
 def test_cargar_memoria_vacia(tmp_path):
     db_path = tmp_path / "test_memoria.db"
@@ -97,6 +101,7 @@ def test_cargar_memoria_vacia(tmp_path):
     persistencia = Persistencia(db_path)
 
     assert persistencia.cargar_memoria() == {}
+
 
 def test_cargar_memoria(tmp_path):
     db_path = tmp_path / "test_memoria.db"
@@ -119,6 +124,7 @@ def test_cargar_memoria(tmp_path):
         "idioma": "español",
     }
 
+
 def test_eliminar_memoria_conserva_otros_recuerdos(tmp_path):
     persistencia = Persistencia(tmp_path / "test_memoria")
 
@@ -138,6 +144,7 @@ def test_eliminar_memoria_conserva_otros_recuerdos(tmp_path):
 
     assert persistencia.obtener_memoria("idioma") == "español"
 
+
 def test_eliminar_memoria_inexistente(tmp_path):
     db_path = tmp_path / "test_memoria"
     persistencia = Persistencia(db_path)
@@ -150,6 +157,7 @@ def test_eliminar_memoria_inexistente(tmp_path):
     assert persistencia.eliminar_memoria("no existe") is False
 
     assert persistencia.cargar_memoria() == {"idioma": "español"}
+
 
 def test_cargar_ultimos_mensajes(tmp_path):
     db_path = tmp_path / "test_memoria"
@@ -182,6 +190,7 @@ def test_cargar_ultimos_mensajes(tmp_path):
         {"role": "assistant", "content": "Mensaje 4"},
     ]
 
+
 def test_cargar_mensajes_con_limite_cero(tmp_path):
     db_path = tmp_path / "test_memoria"
     persistencia = Persistencia(db_path)
@@ -193,9 +202,118 @@ def test_cargar_mensajes_con_limite_cero(tmp_path):
 
     assert persistencia.cargar_mensajes(limite=0) == []
 
+
 def test_cargar_mensajes_rechaza_limite_negativo(tmp_path):
     db_path = tmp_path / "test_memoria"
     persistencia = Persistencia(db_path)
 
     with pytest.raises(ValueError):
         persistencia.cargar_mensajes(limite=-1)
+
+
+def test_obtener_resumen_inexistente(tmp_path):
+    db_path = tmp_path / "test_memoria"
+    persistencia = Persistencia(db_path)
+
+    assert persistencia.obtener_resumen() is None
+
+
+def test_guardar_y_actualizar_resumen(tmp_path):
+    db_path = tmp_path / "test_memoria"
+    persistencia = Persistencia(db_path)
+
+    persistencia.guardar_resumen("primer resumen", 10)
+
+    assert persistencia.obtener_resumen() == {
+        "contenido": "primer resumen", 
+        "ultimo_mensaje_id": 10
+        }
+
+    persistencia.guardar_resumen("resumen actualizado", 20)
+
+    assert persistencia.obtener_resumen() == {
+        "contenido": "resumen actualizado",
+        "ultimo_mensaje_id": 20,
+    }
+
+
+def test_cargar_mensajes_para_resumen_filtra_ids(tmp_path):
+    db_path = tmp_path / "test_memoria"
+    persistencia = Persistencia(db_path)
+
+    persistencia.guardar_mensaje(
+        "user",
+        "Mensaje 1"
+    )
+
+    persistencia.guardar_mensaje(
+        "assistant",
+        "Mensaje 2"
+    )
+
+    persistencia.guardar_mensaje(
+        "user",
+        "Mensaje 3"
+    )
+
+    persistencia.guardar_mensaje(
+        "assistant",
+        "Mensaje 4"
+    )
+
+    persistencia.guardar_mensaje(
+        "user",
+        "mensaje 5"
+    )
+
+    mensajes = persistencia.cargar_mensajes_para_resumen(
+        despues_de_id=1, antes_de_id=5, limite=2
+    )
+
+    mensajes2 = persistencia.cargar_mensajes_para_resumen(
+        despues_de_id=1, antes_de_id=4, limite=10
+    )
+
+    esperado = [
+        {"id": 2, "role": "assistant", "content": "Mensaje 2"},
+        {"id": 3, "role": "user", "content": "Mensaje 3"},
+    ]
+
+    assert mensajes == esperado
+    assert mensajes2 == esperado
+
+
+def test_obtener_id_inicio_historial_reciente(tmp_path):
+    db_path = tmp_path / "test_memoria"
+    persistencia = Persistencia(db_path)
+
+    persistencia.guardar_mensaje(
+        "user",
+        "Mensaje 1"
+    )
+
+    persistencia.guardar_mensaje(
+        "assistant",
+        "Mensaje 2"
+    )
+
+    persistencia.guardar_mensaje(
+        "user",
+        "Mensaje 3"
+    )
+
+    persistencia.guardar_mensaje(
+        "assistant",
+        "Mensaje 4"
+    )
+
+    persistencia.guardar_mensaje(
+        "user",
+        "mensaje 5"
+    )
+
+    assert persistencia.obtener_id_inicio_historial_reciente(2) == 4
+
+    assert persistencia.obtener_id_inicio_historial_reciente(6) is None
+
+

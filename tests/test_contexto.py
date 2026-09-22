@@ -38,6 +38,7 @@ def test_contexto_excluye_pregunta_sin_respuesta(agente):
 
     assert contexto == esperado
 
+
 def test_contexto_con_limite_cero(agente, monkeypatch):
     monkeypatch.setattr(modulo_agente, maximo_contexto_turno, 0)
 
@@ -56,6 +57,7 @@ def test_contexto_con_limite_cero(agente, monkeypatch):
     ]
 
     assert contexto == esperado
+
 
 def test_contexto_conserva_ultimos_turnos(agente, monkeypatch):
 
@@ -85,6 +87,7 @@ def test_contexto_conserva_ultimos_turnos(agente, monkeypatch):
 
     assert contexto == esperado
 
+
 def test_contexto_por_caracteres(agente, monkeypatch):
     monkeypatch.setattr(modulo_agente, maximo_contexto_chars, 6)
 
@@ -108,6 +111,7 @@ def test_contexto_por_caracteres(agente, monkeypatch):
 
     assert contexto == esperado
 
+
 def test_contexto_rechaza_base_demasiado_larga(agente, monkeypatch):
     monkeypatch.setattr(modulo_agente, maximo_contexto_chars, 3)
 
@@ -118,6 +122,7 @@ def test_contexto_rechaza_base_demasiado_larga(agente, monkeypatch):
 
     with pytest.raises(ValueError):
         agente._construir_contexto()
+
 
 def test_responder_rechaza_sin_guardar(agente, monkeypatch):
     monkeypatch.setattr(modulo_agente, maximo_contexto_chars, 3)
@@ -138,6 +143,7 @@ def test_responder_rechaza_sin_guardar(agente, monkeypatch):
         {"role": "system", "content": "ss"}
     ]
 
+
 def test_contexto_incluye_memoria(agente):
     agente.persistencia.cargar_memoria.return_value = {"usuario": "Carlos"}
 
@@ -150,6 +156,7 @@ def test_contexto_incluye_memoria(agente):
 
     assert "usuario: Carlos" in contexto[0]["content"]
     assert agente.messages[0]["content"] == "sistema"
+
 
 def test_memoria_excesiva_rechaza_sin_guardar(agente, monkeypatch):
     monkeypatch.setattr(modulo_agente, maximo_contexto_chars, 100)
@@ -174,6 +181,7 @@ def test_memoria_excesiva_rechaza_sin_guardar(agente, monkeypatch):
         {"role": "system", "content": "s"}
     ]
 
+
 def test_guardar_recuerdo_elimina_espacios(agente):
     respuesta = agente._guardar_recuerdo(" usuario = Carlos ")
 
@@ -182,11 +190,13 @@ def test_guardar_recuerdo_elimina_espacios(agente):
     )
     assert respuesta == "Recordado: usuario = Carlos"
 
+
 def test_guardar_recuerdo_rechaza_valor_vacio(agente):
     with pytest.raises(ValueError):
         agente._guardar_recuerdo("usuario=   ")
 
     agente.persistencia.guardar_memoria.assert_not_called()
+
 
 def test_eliminar_recuerdo_elimina_espacios(agente):
     agente.persistencia.eliminar_memoria.return_value = True
@@ -229,6 +239,7 @@ def test_consola_olvidar_no_consulta_llm(agente, monkeypatch, capsys):
     assert agente.messages == [{"role": "system", "content": "Sistema"}]
     assert "Olvidado: usuario" in capsys.readouterr().out
 
+
 def test_cargar_historial_usa_limite(agente, monkeypatch):
     monkeypatch.setattr(modulo_agente, limite_historial, 3)
 
@@ -249,3 +260,60 @@ def test_cargar_historial_usa_limite(agente, monkeypatch):
         {"role": "user", "content": "hola"},
         {"role": "assistant", "content": "buenas"},
     ]
+
+
+def test_obtener_pendientes_sin_resumen(agente):
+    agente.persistencia.obtener_resumen.return_value = None
+    agente.persistencia.obtener_id_inicio_historial_reciente.return_value = 12
+    agente.persistencia.cargar_mensajes_para_resumen.return_value = [
+        {"id": 1, "role": "user", "content": "Hola"}
+    ]
+
+    pendientes = agente._obtener_mensajes_pendientes_resumen()
+
+    assert pendientes == [
+        {"id": 1, "role": "user", "content": "Hola"}
+    ]
+
+    agente.persistencia.cargar_mensajes_para_resumen.assert_called_once_with(
+        despues_de_id=0,
+        antes_de_id=12,
+        limite=10,
+    )
+
+
+def test_obtener_pendientes_continua_desde_resumen(agente):
+    agente.persistencia.obtener_resumen.return_value = {
+        "contenido": "Resumen anterior",
+        "ultimo_mensaje_id": 5,
+    }
+    agente.persistencia.obtener_id_inicio_historial_reciente.return_value = 12
+    mensajes_pendientes = [
+        {"id": 6, "role": "user", "content": "Nuevo mensaje"}
+    ]
+    agente.persistencia.cargar_mensajes_para_resumen.return_value = mensajes_pendientes
+
+    assert agente._obtener_mensajes_pendientes_resumen() == mensajes_pendientes
+    agente.persistencia.cargar_mensajes_para_resumen.assert_called_once_with(
+        despues_de_id=5,
+        antes_de_id=12,
+        limite=10,
+    )
+
+
+def test_obtener_pendientes_sin_historial_antiguo(agente):
+    agente.persistencia.obtener_resumen.return_value = None
+    agente.persistencia.obtener_id_inicio_historial_reciente.return_value = None
+
+    assert agente._obtener_mensajes_pendientes_resumen() == []
+    agente.persistencia.cargar_mensajes_para_resumen.assert_not_called()
+
+def test_formatear_mensajes_para_resumen(agente):
+    mensajes = [
+        {"id": 1, "role": "user", "content": "Hola"},
+        {"id": 2, "role": "assistant", "content": "Buenas"},
+    ]
+
+    resultado = agente._formatear_mensajes_para_resumen(mensajes)
+
+    assert resultado == "user: Hola\nassistant: Buenas"

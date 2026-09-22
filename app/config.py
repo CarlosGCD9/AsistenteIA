@@ -3,6 +3,9 @@ import os
 
 from dotenv import load_dotenv
 
+#Resumenes
+SUMMARY_BATCH_MESSAGES = 10
+
 #Limites del contexto
 MAX_CONTEXT_TURNS = 5
 MAX_CONTEXT_CHARS = 12000

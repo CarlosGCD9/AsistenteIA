@@ -16,8 +16,10 @@ class Persistencia:
 
         self._crear_tablas()
 
+
     def _conectar(self):
         return sqlite3.connect(self.db_path)
+
 
     def _crear_tablas(self):
         with closing(self._conectar()) as conexion, conexion:
@@ -71,6 +73,7 @@ class Persistencia:
                 (contenido, ultimo_mensaje_id)
             )
 
+
     def obtener_resumen(self):
         with closing(self._conectar()) as conexion, conexion:
             cursor = conexion.execute(
@@ -87,6 +90,54 @@ class Persistencia:
                 return None
 
 
+    def cargar_mensajes_para_resumen(self, despues_de_id: int,antes_de_id: int, limite: int):
+        if despues_de_id < 0:
+            raise ValueError("id negativo")
+        elif limite < 0:
+            raise ValueError("limite negativo")
+        elif limite == 0:
+            return []
+
+        if antes_de_id <= 0:
+            raise ValueError("id 0 o negativo")
+
+        with closing(self._conectar()) as conexion:
+            cursor = conexion.execute(
+                """
+                SELECT id, role, content FROM mensajes
+                WHERE id > ? AND id < ?
+                ORDER BY id ASC
+                LIMIT ?
+                """,
+                (despues_de_id, antes_de_id, limite)
+            )
+
+            filas = cursor.fetchall()
+
+        return [
+            {"id": id_mensaje, "role": role, "content": content}
+            for id_mensaje, role, content in filas
+        ]
+
+
+    def obtener_id_inicio_historial_reciente(self, limite: int):
+        if limite <= 0:
+            raise ValueError("El límite debe ser positivo")
+
+        with closing(self._conectar()) as conexion:
+            cursor = conexion.execute(
+                """
+                SELECT ID FROM mensajes ORDER BY id DESC
+                LIMIT 1 OFFSET ?
+                """,
+                (limite -1,)
+            )
+            filas = cursor.fetchone()
+
+            if filas is None:
+                return None
+            else:
+                return filas[0]
 
 # Gestion de memoria
     
@@ -129,6 +180,7 @@ class Persistencia:
                 return fila[0]
             return None  
 
+
     def cargar_memoria(self):
         with closing(self._conectar()) as conexion:
             cursor = conexion.execute(
@@ -139,6 +191,7 @@ class Persistencia:
 
             filas = cursor.fetchall()
             return dict(filas)
+
 
     def guardar_mensaje(self, role, content):
         with closing(self._conectar()) as conexion, conexion:
@@ -190,6 +243,7 @@ class Persistencia:
             }
             for role, content in filas
         ]
+
 
     def borrar_historial(self):
         with closing(self._conectar()) as conexion, conexion:
