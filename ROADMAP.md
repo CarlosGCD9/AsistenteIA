@@ -6,11 +6,11 @@ Checklist consolidada a partir del roadmap aportado por el usuario. Se conservan
 
 ## Evidencia y criterio de cierre
 
-Revisión del 20 de septiembre de 2026: suite ejecutada por el agente, **22 passed en 2,52 s**, con bases temporales y sin consultas a proveedores. Las pruebas manuales de Ollama sin Internet y recuperación de recuerdos tras reiniciar fueron comunicadas por el usuario. Las marcas originales sobre otras pruebas manuales se conservan identificadas como tales, sin presentarlas como verificaciones nuevas.
+Revisión del 23 de septiembre de 2026: suite completa ejecutada por el agente, **48 passed en 2,45 s**, con bases temporales y sin consultas a proveedores. El usuario comunicó las validaciones manuales de Ollama sin Internet, recuperación de recuerdos tras reiniciar y generación y recuperación del resumen de conversaciones antiguas.
 
 Una tarea se completa con implementación, pruebas relevantes, manejo de errores, integración, documentación y comprensión del concepto cuando corresponda. La existencia de un archivo no completa su funcionalidad. No se hacen commits ni se implementan fases automáticamente.
 
-**Corrección del alcance anterior:** están validados el contexto limitado y la memoria explícita clave-valor. Las fases 4 y 5 del roadmap completo siguen parcialmente pendientes. Las pruebas no prueban funcionalidades todavía inexistentes.
+**Estado del alcance:** la fase 4 está completada y validada. La fase 5 sigue parcialmente pendiente por categorías e importancia. Las pruebas no se presentan como evidencia de funcionalidades todavía inexistentes.
 
 Cierre del bloque de eliminación: `/olvidar` implementado y validado con pruebas de persistencia, lógica del agente y consola simulada. Comprobación manual comunicada por el usuario. Conexiones SQLite cerradas explícitamente en todas las operaciones. Suite completa ejecutada por el agente: **28 passed en 1,91 s**, sin datos reales ni consultas a modelos.
 
@@ -19,7 +19,7 @@ Cierre del bloque de eliminación: `/olvidar` implementado y validado con prueba
 - [x] Conversar de forma natural mediante el proveedor configurado; calidad no evaluada sistemáticamente.
 - [x] Recordar información importante sobre mí mediante guardado explícito.
 - [ ] Recordar proyectos, personas, preferencias y decisiones con estructura y relaciones propias.
-- [ ] Recuperar conversaciones antiguas sin enviar todo el historial al LLM.
+- [x] Recuperar el contexto principal de conversaciones antiguas mediante un resumen acumulativo, sin enviar todo el historial al LLM.
 - [ ] Ejecutar acciones mediante herramientas.
 - [ ] Trabajar con archivos locales.
 - [ ] Consultar Internet cuando sea necesario.
@@ -47,7 +47,7 @@ Historial y recuerdos actuales se almacenan en SQLite local. Si se usa OpenAI, e
 - [x] Variables sensibles mediante `.env`.
 - [x] Separación inicial entre agente y persistencia.
 
-El problema inicial de enviar todo el historial se ha corregido mediante selección de contexto. Sigue cargándose todo el historial al iniciar.
+El problema inicial de enviar y cargar todo el historial se ha corregido mediante selección de contexto, carga limitada y un resumen acumulativo de conversaciones antiguas.
 
 ## Fase 1 — Arquitectura limpia
 
@@ -85,18 +85,24 @@ La interfaz permite sustituir proveedores. Gemini es una posibilidad futura; no 
 
 Mediciones futuras: tiempo hasta primera respuesta, tokens por segundo, RAM, VRAM, calidad y compatibilidad con herramientas. La ejecución local consume hardware y electricidad; también procesa tokens aunque no sean facturados por una API.
 
-## Fase 4 — Gestión del contexto (parcial)
+## Fase 4 — Gestión del contexto (completada)
 
 - [x] Separar historial y contexto enviado al modelo.
 - [x] Mantener los últimos N mensajes activos en el contexto: se seleccionan hasta cinco turnos completos por defecto.
-- [ ] Crear resumen de conversaciones antiguas.
-- [ ] Guardar esos resúmenes.
+- [x] Crear un resumen acumulativo de conversaciones antiguas mediante `/resumir`.
+- [x] Guardar el resumen y el identificador del último mensaje procesado en SQLite.
 - [x] Construir dinámicamente el contexto.
-- [ ] Evitar cargar todo el historial de la BD automáticamente: `_cargar_historial()` todavía lo carga completo.
+- [x] Evitar cargar todo el historial de la BD automáticamente: `_cargar_historial()` carga como máximo `HISTORY_LOAD_LIMIT` mensajes.
 
-El límite actual es de 12000 caracteres, no tokens. Se conservan sistema y pregunta actual, se excluyen preguntas anteriores sin respuesta y se retiran primero turnos antiguos. Los recuerdos cuentan en el límite. Una base excesiva se rechaza antes de guardar la pregunta o llamar al LLM. El historial completo permanece en SQLite y `self.messages`.
+El límite actual es de 12000 caracteres, no tokens. Se conservan sistema y pregunta actual, se excluyen preguntas anteriores sin respuesta y se retiran primero turnos antiguos. El resumen y los recuerdos cuentan en el límite. Una base excesiva se rechaza antes de guardar la pregunta o llamar al LLM. El historial completo permanece en SQLite; `self.messages` contiene la carga reciente y los mensajes añadidos durante la sesión.
 
-La arquitectura objetivo combina sistema, perfil relevante, resúmenes, recuerdos seleccionados, turnos recientes y pregunta actual. Resúmenes y selección semántica todavía no existen. La lógica actual reside en `agente.py`; crear `historial.py` o `context_manager.py` dependerá de la necesidad de separar responsabilidades.
+`/resumir` procesa como máximo `SUMMARY_BATCH_MESSAGES` mensajes antiguos pendientes, conserva solo turnos completos, combina el lote con el resumen anterior y actualiza un único resumen persistente. El resumen se incorpora al mensaje de sistema como datos y no como instrucciones. La generación usa el proveedor configurado: con Ollama se procesa localmente y con OpenAI se envía al servicio cloud.
+
+Posible ampliación que no bloquea el cierre de la fase:
+
+- [ ] Añadir `/olvidar-resumen` para vaciar el contenido conservando el identificador del último mensaje procesado, evitando que el historial antiguo lo reconstruya automáticamente.
+
+La selección semántica sigue prevista para la fase 6. La lógica actual reside en `agente.py`; crear `historial.py` o `context_manager.py` dependerá de la necesidad de separar responsabilidades.
 
 ## Fase 5 — Memoria real (parcial)
 

@@ -12,7 +12,7 @@ La checklist completa se mantiene en [ROADMAP.md](ROADMAP.md). Según su alcance
 
 - Fases 1 y 2: base del asistente, consola, configuración, integración con OpenAI e historial persistente.
 - Fase 3: proveedores separados y ejecución local con Ollama. Validado manualmente con `qwen3:4b` sin Internet.
-- Fase 4: selección del contexto por turnos completos y límite de caracteres.
+- Fase 4: contexto limitado, carga reciente del historial y resumen persistente de conversaciones antiguas mediante `/resumir`.
 - Fase 5: memoria explícita clave-valor en SQLite, actualización, recuperación e integración en el contexto mediante `/recordar`.
 - Fase 6 prevista: memoria semántica; todavía no implementada.
 
@@ -103,16 +103,34 @@ Escribe preguntas en la consola. Para terminar puedes usar `salir`, `exit`, `adi
 
 ## Historial y contexto — Fase 4
 
-SQLite guarda los mensajes y los carga al iniciar. `self.messages` también conserva el historial completo en memoria durante la sesión. El recorte afecta solo al contexto enviado al modelo, no borra mensajes guardados.
+SQLite conserva el historial completo, pero al iniciar solo se cargan los mensajes recientes definidos por `HISTORY_LOAD_LIMIT`. `self.messages` contiene esa carga reciente y los mensajes añadidos durante la sesión. El recorte del contexto y la carga limitada no borran mensajes guardados.
 
 Los límites actuales están definidos en `app/config.py`, no como variables de entorno:
 
 - `MAX_CONTEXT_TURNS = 5`: hasta cinco turnos anteriores completos, cada uno formado por pregunta y respuesta.
 - `MAX_CONTEXT_CHARS = 12000`: máximo de caracteres del contenido de los mensajes enviados.
+- `HISTORY_LOAD_LIMIT = 11`: máximo de mensajes recuperados automáticamente al iniciar.
+- `SUMMARY_BATCH_MESSAGES = 10`: máximo de mensajes antiguos procesados por cada `/resumir`.
 
 El contexto conserva el mensaje de sistema y la pregunta actual. Excluye preguntas anteriores sin respuesta y retira los turnos completos más antiguos cuando no caben. Con cero turnos permitidos, no incorpora historial anterior.
 
-El sistema, la memoria y la pregunta actual forman la base del contexto. Si esa base supera el límite, se lanza un error, se retira la pregunta provisional de `self.messages` y no se guarda la pregunta ni se consulta al modelo. El límite mide caracteres, no tokens.
+El sistema, el resumen, la memoria y la pregunta actual forman la base del contexto. Si esa base supera el límite, se lanza un error, se retira la pregunta provisional de `self.messages` y no se guarda la pregunta ni se consulta al modelo. El límite mide caracteres, no tokens.
+
+### Resumir conversaciones antiguas
+
+El comando `/resumir` selecciona mensajes antiguos que ya quedan fuera del historial reciente, descarta preguntas finales sin respuesta y combina hasta diez mensajes con el resumen anterior. El resultado se guarda en la tabla `resumen_conversacion` junto con el identificador del último mensaje procesado. Solo existe un resumen acumulativo.
+
+```text
+/resumir
+```
+
+El programa muestra `Resumen actualizado.` cuando procesa un lote, o `No hay mensajes antiguos pendientes de resumir.` cuando no hay un turno completo disponible. El comando no se añade al historial. Puede repetirse para procesar varios lotes.
+
+El resumen se añade a una copia del mensaje de sistema como datos, sin modificar el mensaje original, y cuenta dentro de `MAX_CONTEXT_CHARS`. Es una compresión con pérdida: puede omitir detalles, por lo que los datos estables e importantes deben guardarse mediante `/recordar`.
+
+La generación utiliza el proveedor configurado. Con Ollama se procesa localmente; con OpenAI, los mensajes antiguos del lote y el resumen anterior se envían al servicio cloud. Los mensajes originales permanecen en SQLite.
+
+Como posible ampliación futura, `/olvidar-resumen` podría vaciar el contenido conservando el punto de avance. Borrar directamente la fila permitiría que una ejecución posterior reconstruyera el resumen desde el historial antiguo, por lo que ese comportamiento requiere un diseño específico.
 
 ## Memoria explícita — Fase 5
 
@@ -170,13 +188,13 @@ python -m pytest tests/test_contexto.py -q
 python -m pytest tests/test_llm_router.py -q
 ```
 
-Último resultado de la suite completa comunicado por el usuario: **22 passed**. Es un resultado de validación, no un número fijo que deban conservar futuras versiones.
+Última suite completa ejecutada por el agente al cerrar la fase 4: **48 passed en 2,45 s**, con bases temporales, dependencias simuladas y sin consultas a modelos. Se utilizó una clave ficticia solo para construir el cliente OpenAI en las pruebas del router.
 
-Última suite completa ejecutada por el agente al cerrar el bloque de `/olvidar`: **28 passed en 1,91 s**, con bases temporales, dependencias simuladas y sin consultas a modelos. Se utilizó una clave ficticia solo para construir el cliente OpenAI en las pruebas del router.
+El usuario comunicó haber validado manualmente `/resumir`, incluida la recuperación posterior del contexto resumido.
 
 Las pruebas de eliminación cubren el borrado selectivo, una clave inexistente, la limpieza de espacios, el rechazo de claves vacías y la conexión del comando de consola sin llamadas al LLM ni cambios en el historial. El usuario también comunicó haber completado la comprobación manual de `/olvidar`, incluyendo la repetición tras reiniciar.
 
-Las pruebas cubren persistencia, actualización y recuperación de recuerdos, selección de proveedores, recorte de contexto, rechazo sin efectos de guardado, incorporación de memoria y validación básica de recuerdos. Usan bases temporales, `monkeypatch` y `Mock` según el caso.
+Las pruebas cubren persistencia, actualización y recuperación de recuerdos y resúmenes, selección de proveedores, carga limitada del historial, recorte de contexto, rechazo sin efectos de guardado, incorporación de memoria y resumen, y los comandos de consola correspondientes. Usan bases temporales, `monkeypatch` y `Mock` según el caso.
 
 Las pruebas del router instancian proveedores; la de OpenAI necesita una clave configurada para construir el cliente, aunque no realiza una consulta al modelo.
 
